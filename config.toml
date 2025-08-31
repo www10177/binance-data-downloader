@@ -1,0 +1,5 @@
+DEST = "/home/www10177/crypto-data/data"
+symbols = ["BTCUSDT", "ETHUSDT","SUIUSDT","SOLUSDT"]
+
+# bookDepth, bookTicker, trades, metrics, premiumIndexKlines, indexPriceKlines
+data_types = ["bookDepth"]

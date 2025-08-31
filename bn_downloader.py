@@ -1,0 +1,153 @@
+import os
+import typer
+from loguru import logger
+import requests
+from datetime import datetime, timedelta
+import pathlib
+import toml
+from tqdm import tqdm
+import hashlib
+import zipfile
+
+app = typer.Typer()
+um_app = typer.Typer()
+app.add_typer(um_app, name="UM")
+
+def load_config():
+    """Loads the config.toml file."""
+    try:
+        with open("config.toml", "r") as f:
+            return toml.load(f)
+    except FileNotFoundError:
+        logger.error("config.toml not found. Please create one from config.toml.example.")
+        raise typer.Exit(code=1)
+    except Exception as e:
+        logger.error(f"Error loading config.toml: {e}")
+        raise typer.Exit(code=1)
+
+def download_file(url: str, dest_path: pathlib.Path):
+    """Downloads a file from a URL to a destination path."""
+    logger.info(f"Downloading {url} to {dest_path}")
+    try:
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
+        total_size = int(response.headers.get("content-length", 0))
+        with open(dest_path, "wb") as f, tqdm(
+            desc=dest_path.name,
+            total=total_size,
+            unit="iB",
+            unit_scale=True,
+            unit_divisor=1024,
+        ) as bar:
+            for data in response.iter_content(chunk_size=1024):
+                size = f.write(data)
+                bar.update(size)
+        logger.success(f"Successfully downloaded {url}")
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error downloading {url}: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Error during download: {e}")
+        raise
+
+
+def verify_and_unzip(zip_path: pathlib.Path, checksum_path: pathlib.Path):
+    """Verifies the checksum of a zip file, unzips it, and deletes the original files."""
+    logger.info(f"Verifying checksum for {zip_path}")
+    try:
+        with open(checksum_path, "r") as f:
+            expected_checksum = f.read().split()[0]
+
+        sha256 = hashlib.sha256()
+        with open(zip_path, "rb") as f:
+            for byte_block in iter(lambda: f.read(4096), b""):
+                sha256.update(byte_block)
+        calculated_checksum = sha256.hexdigest()
+
+        if expected_checksum == calculated_checksum:
+            with zipfile.ZipFile(zip_path, "r") as zip_ref:
+                extracted_file_name = zip_ref.namelist()[0]
+                zip_ref.extractall(zip_path.parent)
+                extracted_file_path = zip_path.parent / extracted_file_name
+                new_file_name = f"{zip_path.stem}.csv"
+                new_file_path = zip_path.parent / new_file_name
+                logger.info(f"Renaming {extracted_file_path} to {new_file_path}")
+                os.rename(extracted_file_path, new_file_path)
+            checksum_path.unlink()
+            zip_path.unlink()
+        else:
+            logger.error(f"Checksum mismatch for {zip_path}. Expected {expected_checksum}, got {calculated_checksum}")
+            raise ValueError(f"Checksum mismatch for {zip_path}")
+    except Exception as e:
+        logger.error(f"Error during verification and unzipping: {e}")
+        raise
+
+@um_app.command()
+def download(
+    start_date: str = typer.Option(
+        ...,
+        "-s",
+        help="Start date in YYYYMMDD format",
+    ),
+    end_date: str = typer.Option(
+        None,
+        "-e",
+        help="End date in YYYYMMDD format (defaults to start_date)",
+    ),
+):
+    """
+    Downloads book depth data for a given symbol and date range.
+    """
+    if end_date is None:
+        end_date = start_date
+
+    config = load_config()
+    DEST = config.get("DEST")
+    symbols = config.get("symbols", [])
+
+    data_types = config.get("data_types", [])
+
+    if not DEST or not symbols or not data_types:
+        logger.error("DEST, symbols, or data_types not set in config.toml.")
+        raise typer.Exit(code=1)
+
+    try:
+        start = datetime.strptime(start_date, "%Y%m%d")
+        end = datetime.strptime(end_date, "%Y%m%d")
+    except ValueError:
+        logger.error("Invalid date format. Please use YYYYMMDD.")
+        raise typer.Exit(code=1)
+
+    delta = end - start
+    for i in range(delta.days + 1):
+        current_date = end - timedelta(days=i)
+        date_str_url = current_date.strftime("%Y-%m-%d")
+        year, month, day = current_date.strftime("%Y"), current_date.strftime("%m"), current_date.strftime("%d")
+
+        for symbol in symbols:
+            for data_type in data_types:
+                base_url = f"https://data.binance.vision/data/futures/um/daily/{data_type}/{symbol}/"
+                file_name_zip = f"{symbol}-{data_type}-{date_str_url}.zip"
+                file_name_checksum = f"{file_name_zip}.CHECKSUM"
+
+                url_zip = f"{base_url}{file_name_zip}"
+                url_checksum = f"{base_url}{file_name_checksum}"
+
+                dest_dir = pathlib.Path(DEST) / year / month / day / data_type
+                dest_dir.mkdir(parents=True, exist_ok=True)
+
+                dest_path_zip = dest_dir / f"{symbol}.zip"
+                dest_path_checksum = dest_dir / f"{symbol}.zip.CHECKSUM"
+
+                try:
+                    download_file(url_zip, dest_path_zip)
+                    download_file(url_checksum, dest_path_checksum)
+                    verify_and_unzip(dest_path_zip, dest_path_checksum)
+                except Exception:
+                    # Log the error and continue with the next file/date
+                    logger.error(f"Failed to download data for {symbol} on {date_str_url}")
+                    continue
+
+
+if __name__ == "__main__":
+    app()
