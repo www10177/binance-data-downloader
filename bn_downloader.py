@@ -9,6 +9,8 @@ from tqdm import tqdm
 import hashlib
 import zipfile
 
+logger.add("bn_downloader.log", rotation="10 MB")
+
 app = typer.Typer()
 um_app = typer.Typer()
 app.add_typer(um_app, name="UM")
@@ -27,22 +29,12 @@ def load_config():
 
 def download_file(url: str, dest_path: pathlib.Path):
     """Downloads a file from a URL to a destination path."""
-    logger.info(f"Downloading {url} to {dest_path}")
     try:
         response = requests.get(url, stream=True)
         response.raise_for_status()
-        total_size = int(response.headers.get("content-length", 0))
-        with open(dest_path, "wb") as f, tqdm(
-            desc=dest_path.name,
-            total=total_size,
-            unit="iB",
-            unit_scale=True,
-            unit_divisor=1024,
-        ) as bar:
+        with open(dest_path, "wb") as f:
             for data in response.iter_content(chunk_size=1024):
-                size = f.write(data)
-                bar.update(size)
-        logger.success(f"Successfully downloaded {url}")
+                f.write(data)
     except requests.exceptions.RequestException as e:
         logger.error(f"Error downloading {url}: {e}")
         raise
@@ -53,7 +45,6 @@ def download_file(url: str, dest_path: pathlib.Path):
 
 def verify_and_unzip(zip_path: pathlib.Path, checksum_path: pathlib.Path):
     """Verifies the checksum of a zip file, unzips it, and deletes the original files."""
-    logger.info(f"Verifying checksum for {zip_path}")
     try:
         with open(checksum_path, "r") as f:
             expected_checksum = f.read().split()[0]
@@ -71,7 +62,6 @@ def verify_and_unzip(zip_path: pathlib.Path, checksum_path: pathlib.Path):
                 extracted_file_path = zip_path.parent / extracted_file_name
                 new_file_name = f"{zip_path.stem}.csv"
                 new_file_path = zip_path.parent / new_file_name
-                logger.info(f"Renaming {extracted_file_path} to {new_file_path}")
                 os.rename(extracted_file_path, new_file_path)
             checksum_path.unlink()
             zip_path.unlink()
@@ -119,34 +109,41 @@ def download(
         raise typer.Exit(code=1)
 
     delta = end - start
+    
+    files_to_process = []
     for i in range(delta.days + 1):
         current_date = end - timedelta(days=i)
-        date_str_url = current_date.strftime("%Y-%m-%d")
-        year, month, day = current_date.strftime("%Y"), current_date.strftime("%m"), current_date.strftime("%d")
-
         for symbol in symbols:
             for data_type in data_types:
-                base_url = f"https://data.binance.vision/data/futures/um/daily/{data_type}/{symbol}/"
-                file_name_zip = f"{symbol}-{data_type}-{date_str_url}.zip"
-                file_name_checksum = f"{file_name_zip}.CHECKSUM"
+                files_to_process.append((current_date, symbol, data_type))
 
-                url_zip = f"{base_url}{file_name_zip}"
-                url_checksum = f"{base_url}{file_name_checksum}"
+    with tqdm(total=len(files_to_process), desc="Downloading data") as pbar:
+        for current_date, symbol, data_type in files_to_process:
+            date_str_url = current_date.strftime("%Y-%m-%d")
+            year, month, day = current_date.strftime("%Y"), current_date.strftime("%m"), current_date.strftime("%d")
+            
+            base_url = f"https://data.binance.vision/data/futures/um/daily/{data_type}/{symbol}/"
+            file_name_zip = f"{symbol}-{data_type}-{date_str_url}.zip"
+            file_name_checksum = f"{file_name_zip}.CHECKSUM"
 
-                dest_dir = pathlib.Path(DEST) / year / month / day / data_type
-                dest_dir.mkdir(parents=True, exist_ok=True)
+            url_zip = f"{base_url}{file_name_zip}"
+            url_checksum = f"{base_url}{file_name_checksum}"
 
-                dest_path_zip = dest_dir / f"{symbol}.zip"
-                dest_path_checksum = dest_dir / f"{symbol}.zip.CHECKSUM"
+            dest_dir = pathlib.Path(DEST) / year / month / day / data_type
+            dest_dir.mkdir(parents=True, exist_ok=True)
 
-                try:
-                    download_file(url_zip, dest_path_zip)
-                    download_file(url_checksum, dest_path_checksum)
-                    verify_and_unzip(dest_path_zip, dest_path_checksum)
-                except Exception:
-                    # Log the error and continue with the next file/date
-                    logger.error(f"Failed to download data for {symbol} on {date_str_url}")
-                    continue
+            dest_path_zip = dest_dir / f"{symbol}.zip"
+            dest_path_checksum = dest_dir / f"{symbol}.zip.CHECKSUM"
+
+            try:
+                download_file(url_zip, dest_path_zip)
+                download_file(url_checksum, dest_path_checksum)
+                verify_and_unzip(dest_path_zip, dest_path_checksum)
+            except Exception:
+                # Log the error and continue with the next file/date
+                logger.error(f"Failed to download data for {symbol} on {date_str_url}")
+            finally:
+                pbar.update(1)
 
 
 if __name__ == "__main__":
