@@ -8,8 +8,9 @@ import toml
 from tqdm import tqdm
 import hashlib
 import zipfile
+import concurrent.futures
 
-logger.add("bn_downloader.log", rotation="10 MB")
+logger.add("log_{time}.log", rotation="10 MB")
 
 app = typer.Typer()
 um_app = typer.Typer()
@@ -72,6 +73,33 @@ def verify_and_unzip(zip_path: pathlib.Path, checksum_path: pathlib.Path):
         logger.error(f"Error during verification and unzipping: {e}")
         raise
 
+def process_task(args):
+    current_date, symbol, data_type, dest, pbar = args
+    try:
+        date_str_url = current_date.strftime("%Y-%m-%d")
+        year, month, day = current_date.strftime("%Y"), current_date.strftime("%m"), current_date.strftime("%d")
+        
+        base_url = f"https://data.binance.vision/data/futures/um/daily/{data_type}/{symbol}/"
+        file_name_zip = f"{symbol}-{data_type}-{date_str_url}.zip"
+        file_name_checksum = f"{file_name_zip}.CHECKSUM"
+
+        url_zip = f"{base_url}{file_name_zip}"
+        url_checksum = f"{base_url}{file_name_checksum}"
+
+        dest_dir = pathlib.Path(dest) / year / month / day / data_type
+        dest_dir.mkdir(parents=True, exist_ok=True)
+
+        dest_path_zip = dest_dir / f"{symbol}.zip"
+        dest_path_checksum = dest_dir / f"{symbol}.zip.CHECKSUM"
+
+        download_file(url_zip, dest_path_zip)
+        download_file(url_checksum, dest_path_checksum)
+        verify_and_unzip(dest_path_zip, dest_path_checksum)
+    except Exception:
+        logger.error(f"Failed to download data for {symbol} on {date_str_url}")
+    finally:
+        pbar.update(1)
+
 @um_app.command()
 def download(
     start_date: str = typer.Option(
@@ -83,6 +111,12 @@ def download(
         None,
         "-e",
         help="End date in YYYYMMDD format (defaults to start_date)",
+    ),
+    max_workers: int = typer.Option(
+        4,
+        "--max-workers",
+        "-w",
+        help="Number of worker threads to use.",
     ),
 ):
     """
@@ -110,40 +144,18 @@ def download(
 
     delta = end - start
     
-    files_to_process = []
+    tasks = []
     for i in range(delta.days + 1):
         current_date = end - timedelta(days=i)
         for symbol in symbols:
             for data_type in data_types:
-                files_to_process.append((current_date, symbol, data_type))
+                tasks.append((current_date, symbol, data_type, DEST))
 
-    with tqdm(total=len(files_to_process), desc="Downloading data") as pbar:
-        for current_date, symbol, data_type in files_to_process:
-            date_str_url = current_date.strftime("%Y-%m-%d")
-            year, month, day = current_date.strftime("%Y"), current_date.strftime("%m"), current_date.strftime("%d")
-            
-            base_url = f"https://data.binance.vision/data/futures/um/daily/{data_type}/{symbol}/"
-            file_name_zip = f"{symbol}-{data_type}-{date_str_url}.zip"
-            file_name_checksum = f"{file_name_zip}.CHECKSUM"
-
-            url_zip = f"{base_url}{file_name_zip}"
-            url_checksum = f"{base_url}{file_name_checksum}"
-
-            dest_dir = pathlib.Path(DEST) / year / month / day / data_type
-            dest_dir.mkdir(parents=True, exist_ok=True)
-
-            dest_path_zip = dest_dir / f"{symbol}.zip"
-            dest_path_checksum = dest_dir / f"{symbol}.zip.CHECKSUM"
-
-            try:
-                download_file(url_zip, dest_path_zip)
-                download_file(url_checksum, dest_path_checksum)
-                verify_and_unzip(dest_path_zip, dest_path_checksum)
-            except Exception:
-                # Log the error and continue with the next file/date
-                logger.error(f"Failed to download data for {symbol} on {date_str_url}")
-            finally:
-                pbar.update(1)
+    with tqdm(total=len(tasks), desc="Downloading data") as pbar:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Pass pbar to each task
+            tasks_with_pbar = [task + (pbar,) for task in tasks]
+            executor.map(process_task, tasks_with_pbar)
 
 
 if __name__ == "__main__":
