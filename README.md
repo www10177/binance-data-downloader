@@ -1,4 +1,4 @@
-# Crypto Data Downloader
+# Binance Data Downloader
 
 A simple command-line tool to download cryptocurrency data from the Binance public data endpoint.
 
