@@ -74,13 +74,20 @@ def verify_and_unzip(zip_path: pathlib.Path, checksum_path: pathlib.Path):
         raise
 
 def process_task(args):
-    current_date, symbol, data_type, dest, pbar = args
+    current_date, symbol, data_type, dest, config, pbar = args
     try:
         date_str_url = current_date.strftime("%Y-%m-%d")
         year, month, day = current_date.strftime("%Y"), current_date.strftime("%m"), current_date.strftime("%d")
         
-        base_url = f"https://data.binance.vision/data/futures/um/daily/{data_type}/{symbol}/"
-        file_name_zip = f"{symbol}-{data_type}-{date_str_url}.zip"
+        interval= config["interval"]
+        
+        if data_type in ["premiumIndexKlines", "indexPriceKlines", "klines"]:
+            base_url = f"https://data.binance.vision/data/futures/um/daily/{data_type}/{symbol}/{interval}/"
+            file_name_zip = f"{symbol}-{interval}-{date_str_url}.zip"
+        else:
+            base_url = f"https://data.binance.vision/data/futures/um/daily/{data_type}/{symbol}/"
+            file_name_zip = f"{symbol}-{data_type}-{date_str_url}.zip"
+
         file_name_checksum = f"{file_name_zip}.CHECKSUM"
 
         url_zip = f"{base_url}{file_name_zip}"
@@ -149,7 +156,7 @@ def download(
         current_date = end - timedelta(days=i)
         for symbol in symbols:
             for data_type in data_types:
-                tasks.append((current_date, symbol, data_type, DEST))
+                tasks.append((current_date, symbol, data_type, DEST, config))
 
     with tqdm(total=len(tasks), desc="Downloading data") as pbar:
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
