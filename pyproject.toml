@@ -15,6 +15,7 @@ dependencies = [
 ]
 [project.scripts]
 bn-downloader = "bn_downloader.main:app"
+bn-converter= "converter:app"
 
 [tool.uv]
 package = true

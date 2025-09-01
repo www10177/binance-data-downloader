@@ -1,7 +1,0 @@
-typer
-loguru
-requests
-toml
-tqdm
-polars
-pyarrow

@@ -1,14 +1,15 @@
+import concurrent.futures
+import hashlib
 import os
+import pathlib
+import zipfile
+from datetime import datetime, timedelta
+
+import requests
+import toml
 import typer
 from loguru import logger
-import requests
-from datetime import datetime, timedelta
-import pathlib
-import toml
 from tqdm import tqdm
-import hashlib
-import zipfile
-import concurrent.futures
 
 logger.add("log_{time}.log", rotation="10 MB")
 
@@ -16,17 +17,21 @@ app = typer.Typer()
 um_app = typer.Typer()
 app.add_typer(um_app, name="UM")
 
+
 def load_config():
     """Loads the config.toml file."""
     try:
         with open("config.toml", "r") as f:
             return toml.load(f)
     except FileNotFoundError:
-        logger.error("config.toml not found. Please create one from config.toml.example.")
+        logger.error(
+            "config.toml not found. Please create one from config.toml.example."
+        )
         raise typer.Exit(code=1)
     except Exception as e:
         logger.error(f"Error loading config.toml: {e}")
         raise typer.Exit(code=1)
+
 
 def download_file(url: str, dest_path: pathlib.Path):
     """Downloads a file from a URL to a destination path."""
@@ -44,7 +49,9 @@ def download_file(url: str, dest_path: pathlib.Path):
         raise
 
 
-def verify_and_unzip(zip_path: pathlib.Path, checksum_path: pathlib.Path):
+def verify_and_unzip(
+    zip_path: pathlib.Path, checksum_path: pathlib.Path, has_interval: bool
+):
     """Verifies the checksum of a zip file, unzips it, and deletes the original files."""
     try:
         with open(checksum_path, "r") as f:
@@ -61,32 +68,46 @@ def verify_and_unzip(zip_path: pathlib.Path, checksum_path: pathlib.Path):
                 extracted_file_name = zip_ref.namelist()[0]
                 zip_ref.extractall(zip_path.parent)
                 extracted_file_path = zip_path.parent / extracted_file_name
-                new_file_name = f"{zip_path.stem}.csv"
+                new_file_name = (
+                    "-".join(extracted_file_name.split("-")[:2]) + ".csv"
+                    if has_interval
+                    else f"{zip_path.stem}.csv"
+                )
                 new_file_path = zip_path.parent / new_file_name
+                logger.info(f"Extracted {extracted_file_name} to {new_file_name}")
                 os.rename(extracted_file_path, new_file_path)
             checksum_path.unlink()
             zip_path.unlink()
         else:
-            logger.error(f"Checksum mismatch for {zip_path}. Expected {expected_checksum}, got {calculated_checksum}")
+            logger.error(
+                f"Checksum mismatch for {zip_path}. Expected {expected_checksum}, got {calculated_checksum}"
+            )
             raise ValueError(f"Checksum mismatch for {zip_path}")
     except Exception as e:
         logger.error(f"Error during verification and unzipping: {e}")
         raise
 
+
 def process_task(args):
     current_date, symbol, data_type, dest, config, pbar = args
     try:
         date_str_url = current_date.strftime("%Y-%m-%d")
-        year, month, day = current_date.strftime("%Y"), current_date.strftime("%m"), current_date.strftime("%d")
+        year, month, day = (
+            current_date.strftime("%Y"),
+            current_date.strftime("%m"),
+            current_date.strftime("%d"),
+        )
 
-        interval= config["interval"]
+        interval = config["interval"]
 
         if data_type in ["premiumIndexKlines", "indexPriceKlines", "klines"]:
             base_url = f"https://data.binance.vision/data/futures/um/daily/{data_type}/{symbol}/{interval}/"
             file_name_zip = f"{symbol}-{interval}-{date_str_url}.zip"
+            has_inverval = True
         else:
             base_url = f"https://data.binance.vision/data/futures/um/daily/{data_type}/{symbol}/"
             file_name_zip = f"{symbol}-{data_type}-{date_str_url}.zip"
+            has_inverval = False
 
         file_name_checksum = f"{file_name_zip}.CHECKSUM"
 
@@ -101,11 +122,12 @@ def process_task(args):
 
         download_file(url_zip, dest_path_zip)
         download_file(url_checksum, dest_path_checksum)
-        verify_and_unzip(dest_path_zip, dest_path_checksum)
+        verify_and_unzip(dest_path_zip, dest_path_checksum, has_inverval)
     except Exception:
         logger.error(f"Failed to download data for {symbol} on {date_str_url}")
     finally:
         pbar.update(1)
+
 
 @um_app.command()
 def download(
