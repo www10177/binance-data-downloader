@@ -2,6 +2,7 @@ import glob
 import pathlib
 import re
 from datetime import date, datetime
+from pathlib import Path
 from typing import Optional
 
 import polars as pl
@@ -41,7 +42,7 @@ def load_config():
 
 config = load_config()
 
-DATA_DIR = pathlib.Path(config["DEST"])
+DATA_DIR = Path(config["DEST"])
 logger.info(f"Using data directory: {DATA_DIR}")
 
 
@@ -71,20 +72,22 @@ def get_symbol_precision(exchange_info, symbol):
 def find_all_symbols_and_types(start_date, end_date):
     """Find all (symbol, data_type) pairs in the data directory for the date range."""
     found = set()
-    for d in DATA_DIR.glob("*/*/*/*.csv"):
-        print(d)
+    for d in DATA_DIR.glob("*/*/*/*/*.csv"):
         try:
             parts = d.parts
-            yyyy = int(parts[0])
-            mm = int(parts[1])
-            dd = int(parts[2])
+            print(parts)
+            yyyy = int(parts[-5])
+            mm = int(parts[-4])
+            dd = int(parts[-3])
             file_date = date(yyyy, mm, dd)
+            print(file_date, start_date, end_date)
             if start_date <= file_date <= end_date:
-                data_type = parts[3]
+                data_type = parts[-2]
                 symbol = d.stem  # filename without .csv
                 found.add((symbol, data_type))
         except Exception:
             continue
+    print(found)
     return sorted(found)
 
 
@@ -154,10 +157,12 @@ def convert(
             jobs = [(symbol, data_type)]
         else:
             jobs = find_all_symbols_and_types(start_dt, end_dt)
+            print(jobs)
             if symbol:
                 jobs = [j for j in jobs if j[0] == symbol]
             if data_type:
                 jobs = [j for j in jobs if j[1] == data_type]
+
         if not jobs:
             logger.error(
                 "No matching symbol/data_type pairs found for the given range."
