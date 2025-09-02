@@ -142,17 +142,17 @@ def convert(
         raise typer.Exit(code=1)
 
     for sym, dtype in jobs:
-        try:
-            csv_files = find_csv_files(sym, dtype, start_dt, end_dt)
-            if not csv_files:
-                logger.warning(
-                    f"No CSV files found for {sym} {dtype} between {start_date} and {end_date} in {DATA_DIR}"
-                )
-                continue
-            logger.info(
-                f"Found {len(csv_files)} CSV files for {sym} {dtype} from {start_date} to {end_date}."
+        csv_files = find_csv_files(sym, dtype, start_dt, end_dt)
+        if not csv_files:
+            logger.warning(
+                f"No CSV files found for {sym} {dtype} between {start_date} and {end_date} in {DATA_DIR}"
             )
-            for csv_file in csv_files:
+            continue
+        logger.info(
+            f"Found {len(csv_files)} CSV files for {sym} {dtype} from {start_date} to {end_date}."
+        )
+        for csv_file in csv_files:
+            try:
                 schema = SCHEMA.get(dtype, None)
                 if schema:
                     try:
@@ -240,9 +240,9 @@ def convert(
                         logger.info(f"Removed {csv_file}")
                     except Exception as e:
                         logger.warning(f"Failed to remove {csv_file}: {e}")
-        except Exception as e:
-            logger.exception(f"An error occurred during conversion: {e}")
-            # raise typer.Exit(code=1)
+            except Exception as e:
+                logger.exception(f"An error occurred during conversion: {e}")
+                # raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":
