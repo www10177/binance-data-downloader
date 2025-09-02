@@ -15,7 +15,13 @@ dependencies = [
 ]
 [project.scripts]
 bn-downloader = "bn_downloader.main:app"
-bn-converter= "converter:app"
+bn-converter= "bn_converter.main:app"
 
 [tool.uv]
 package = true
+
+[dependency-groups]
+dev = [
+    "ipykernel>=6.30.1",
+    "jupyter>=1.1.1",
+]
