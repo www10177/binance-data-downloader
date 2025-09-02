@@ -11,8 +11,6 @@ import typer
 from loguru import logger
 from tqdm import tqdm
 
-logger.add("log_{time}.log", rotation="10 MB")
-
 app = typer.Typer()
 um_app = typer.Typer()
 app.add_typer(um_app, name="UM")
@@ -31,6 +29,17 @@ def load_config():
     except Exception as e:
         logger.error(f"Error loading config.toml: {e}")
         raise typer.Exit(code=1)
+
+
+def setup_logging():
+    config = load_config()
+    log_dir = config.get("LOG_DIR", "./logs")
+    os.makedirs(log_dir, exist_ok=True)
+    log_path = os.path.join(log_dir, "log_{time}.log")
+    logger.add(log_path, rotation="10 MB")
+
+
+setup_logging()
 
 
 def download_file(url: str, dest_path: pathlib.Path):

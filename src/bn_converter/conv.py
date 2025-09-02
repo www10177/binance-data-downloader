@@ -1,4 +1,5 @@
 import glob
+import os
 import pathlib
 import re
 from datetime import date, datetime
@@ -30,6 +31,16 @@ def load_config():
         logger.error(f"Error loading config.toml: {e}")
         raise typer.Exit(code=1)
 
+
+def setup_logging():
+    config = load_config()
+    log_dir = config.get("LOG_DIR", "./logs")
+    os.makedirs(log_dir, exist_ok=True)
+    log_path = os.path.join(log_dir, "log_{time:YYYY-MM-DD}.log")
+    logger.add(log_path, rotation="10 MB")
+
+
+setup_logging()
 
 config = load_config()
 
@@ -202,7 +213,8 @@ def convert(
                             pl.col("timestamp").str.strptime(
                                 pl.Datetime, format="%Y-%m-%d %H:%M:%S"
                             )
-                        ).pivot(
+                        )
+                        df = df.pivot(
                             values=["depth", "notional"],
                             index=["timestamp"],
                             columns="percentage",
