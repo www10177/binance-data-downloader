@@ -14,8 +14,7 @@ dependencies = [
     "pyarrow>=15.0.0",
 ]
 [project.scripts]
-bn-downloader = "bn_downloader.main:app"
-bn-converter= "bn_converter.main:app"
+bn= "cli:app"
 
 [tool.uv]
 package = true
