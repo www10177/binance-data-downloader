@@ -30,7 +30,7 @@ AGGTRADES_SCHEMA = {
 # Schema for bookDepth
 BOOKDEPTH_SCHEMA = {
     "timestamp": pl.String,
-    "percentage": pl.Utf8,
+    "percentage": pl.Int8,
     "depth": pl.Utf8,
     "notional": pl.Utf8,
 }

@@ -202,6 +202,10 @@ def convert(
                             pl.col("timestamp").str.strptime(
                                 pl.Datetime, format="%Y-%m-%d %H:%M:%S"
                             )
+                        ).pivot(
+                            values=["depth", "notional"],
+                            index=["timestamp"],
+                            columns="percentage",
                         )
                     case "metrics":
                         # Convert create_time to datetime
