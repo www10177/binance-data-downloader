@@ -120,31 +120,29 @@ def convert(
     Converts CSV files in the data directory for a symbol, data type, and date range to Parquet file(s).
     If symbol or data_type is omitted, convert all found in the date range.
     """
-    try:
-        start_dt = datetime.strptime(start_date, "%Y%m%d").date()
-        end_dt = (
-            datetime.strptime(end_date, "%Y%m%d").date()
-            if end_date is not None
-            else start_dt
-        )
+    start_dt = datetime.strptime(start_date, "%Y%m%d").date()
+    end_dt = (
+        datetime.strptime(end_date, "%Y%m%d").date()
+        if end_date is not None
+        else start_dt
+    )
 
-        # Determine what to convert
-        if symbol and data_type:
-            jobs = [(symbol, data_type)]
-        else:
-            jobs = find_all_symbols_and_types(start_dt, end_dt)
-            if symbol:
-                jobs = [j for j in jobs if j[0] == symbol]
-            if data_type:
-                jobs = [j for j in jobs if j[1] == data_type]
+    # Determine what to convert
+    if symbol and data_type:
+        jobs = [(symbol, data_type)]
+    else:
+        jobs = find_all_symbols_and_types(start_dt, end_dt)
+        if symbol:
+            jobs = [j for j in jobs if j[0] == symbol]
+        if data_type:
+            jobs = [j for j in jobs if j[1] == data_type]
 
-        if not jobs:
-            logger.error(
-                "No matching symbol/data_type pairs found for the given range."
-            )
-            raise typer.Exit(code=1)
+    if not jobs:
+        logger.error("No matching symbol/data_type pairs found for the given range.")
+        raise typer.Exit(code=1)
 
-        for sym, dtype in jobs:
+    for sym, dtype in jobs:
+        try:
             csv_files = find_csv_files(sym, dtype, start_dt, end_dt)
             if not csv_files:
                 logger.warning(
@@ -242,9 +240,9 @@ def convert(
                         logger.info(f"Removed {csv_file}")
                     except Exception as e:
                         logger.warning(f"Failed to remove {csv_file}: {e}")
-    except Exception as e:
-        logger.exception(f"An error occurred during conversion: {e}")
-        raise typer.Exit(code=1)
+        except Exception as e:
+            logger.exception(f"An error occurred during conversion: {e}")
+            # raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":
