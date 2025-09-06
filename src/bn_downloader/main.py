@@ -117,7 +117,7 @@ def process_task(args):
             file_name_zip = f"{symbol}-{interval}-{date_str_url}.zip"
             has_inverval = True
         else:
-            base_url = f"{base_url_prefix}{data_type}/{symbol}/"
+            base_url = f"{base_url_prefix}/{data_type}/{symbol}/"
             file_name_zip = f"{symbol}-{data_type}-{date_str_url}.zip"
             has_inverval = False
 
@@ -142,32 +142,7 @@ def process_task(args):
 
 
 @um_app.command()
-def download(
-    start_date: str = typer.Option(
-        ...,
-        "--start-date",
-        "-s",
-        help="Start date in YYYYMMDD format",
-    ),
-    end_date: str = typer.Option(
-        None,
-        "--end-date",
-        "-e",
-        help="End date in YYYYMMDD format (defaults to start_date)",
-    ),
-    max_workers: int = typer.Option(
-        4,
-        "--max-workers",
-        "-w",
-        help="Number of worker threads to use.",
-    ),
-    source: Binance = typer.Option(
-        Binance.UM,
-        "-s",
-        "--source",
-        help="data source ",
-    ),
-):
+def download(start_date: str, end_date: str | None, max_workers: int, source: Binance):
     """
     Downloads book depth data for a given symbol and date range.
     """

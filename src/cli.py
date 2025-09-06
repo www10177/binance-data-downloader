@@ -1,8 +1,9 @@
-import typer
 from typing import Optional
 
+import typer
+
 from bn_converter.conv import convert, migrate
-from bn_downloader.main import download
+from bn_downloader.main import Binance, download
 
 app = typer.Typer()
 
@@ -21,8 +22,11 @@ def cli_download(
     max_workers: int = typer.Option(
         4, "--max-workers", "-w", help="Number of worker threads to use."
     ),
+    source: Binance = typer.Argument(
+        help="data source ",
+    ),
 ):
-    download(start_date, end_date, max_workers)
+    download(start_date, end_date, max_workers, source)
 
 
 @app.command("convert")
@@ -30,7 +34,9 @@ def cli_convert(
     start_date: str = typer.Option(
         ..., "--start-date", "-s", help="Start date (YYYYMMDD)."
     ),
-    end_date: Optional[str] = typer.Option(None, "--end-date", "-e", help="End date (YYYYMMDD)."),
+    end_date: Optional[str] = typer.Option(
+        None, "--end-date", "-e", help="End date (YYYYMMDD)."
+    ),
     symbol: Optional[str] = typer.Option(
         None,
         "--symbol",
