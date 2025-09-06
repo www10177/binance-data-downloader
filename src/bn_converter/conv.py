@@ -11,10 +11,17 @@ import requests
 import toml
 import typer
 from loguru import logger
+from tqdm import tqdm
 
 from .schemas import SCHEMA
 
-app = typer.Typer()
+
+
+
+def snake_to_pascal(snake_str: str) -> str:
+    """Convert snake_case string to PascalCase."""
+    components = snake_str.split('_')
+    return ''.join(word.capitalize() for word in components)
 
 
 def load_config():
@@ -96,25 +103,12 @@ def find_csv_files(symbol, data_type, start_date, end_date):
     return [f[1] for f in files]
 
 
-@app.command()
 def convert(
-    start_date: str = typer.Option(
-        ..., "--start-date", "-s", help="Start date (YYYYMMDD)."
-    ),
-    end_date: str = typer.Option(None, "--end-date", "-e", help="End date (YYYYMMDD)."),
-    symbol: Optional[str] = typer.Option(
-        None,
-        "--symbol",
-        help="Trading symbol (e.g., BTCUSDT). If omitted, convert all symbols.",
-    ),
-    data_type: Optional[str] = typer.Option(
-        None,
-        "--type",
-        help="Data type (e.g., trades, aggTrades, klines, etc.). If omitted, convert all types.",
-    ),
-    rm: bool = typer.Option(
-        False, "--rm", help="Remove CSV files after successful conversion."
-    ),
+    start_date: str,
+    end_date: Optional[str] = None,
+    symbol: Optional[str] = None,
+    data_type: Optional[str] = None,
+    rm: bool = False,
 ):
     """
     Converts CSV files in the data directory for a symbol, data type, and date range to Parquet file(s).
@@ -153,17 +147,25 @@ def convert(
         )
         for csv_file in csv_files:
             try:
+                # Read CSV without schema first to get original column names
+                df = pl.read_csv(csv_file, try_parse_dates=True)
+                
+                # Convert column names from snake_case to PascalCase
+                column_mapping = {col: snake_to_pascal(col) for col in df.columns}
+                df = df.rename(column_mapping)
+                
+                # Apply schema if available (now with PascalCase column names)
                 schema = SCHEMA.get(dtype, None)
                 if schema:
                     try:
-                        df = pl.read_csv(csv_file, try_parse_dates=True, schema=schema)
+                        # Cast columns to match schema types
+                        for col_name, col_type in schema.items():
+                            if col_name in df.columns:
+                                df = df.with_columns(pl.col(col_name).cast(col_type))
                     except Exception as e:
                         logger.warning(
-                            f"Could not apply schema for {dtype}: {e}, falling back to default."
+                            f"Could not apply schema types for {dtype}: {e}"
                         )
-                        df = pl.read_csv(csv_file, try_parse_dates=True)
-                else:
-                    df = pl.read_csv(csv_file, try_parse_dates=True)
                 # Guess decimal scale for Utf8 columns
                 for col_name in df.columns:
                     if df[col_name].dtype == pl.Utf8:
@@ -195,39 +197,39 @@ def convert(
 
                 match dtype:
                     case "klines":
-                        # Convert open_time and close_time to datetime
+                        # Convert OpenTime and CloseTime to datetime
                         df = df.with_columns(
-                            pl.col("open_time").cast(pl.Datetime("ms")),
-                            pl.col("close_time").cast(pl.Datetime("ms")),
+                            pl.col("OpenTime").cast(pl.Datetime("ms")),
+                            pl.col("CloseTime").cast(pl.Datetime("ms")),
                         )
                     case "aggTrades":
-                        # Convert transact_time to datetime
+                        # Convert TransactTime to datetime
                         df = df.with_columns(
-                            pl.col("transact_time").cast(pl.Datetime("ms"))
+                            pl.col("TransactTime").cast(pl.Datetime("ms"))
                         )
                     case "bookDepth":
-                        # Convert timestamp to datetime
+                        # Convert Timestamp to datetime
                         df = df.with_columns(
-                            pl.col("timestamp").str.strptime(
+                            pl.col("Timestamp").str.strptime(
                                 pl.Datetime, format="%Y-%m-%d %H:%M:%S"
                             )
                         )
                         df = df.pivot(
-                            values=["depth", "notional"],
-                            index=["timestamp"],
-                            columns="percentage",
+                            values=["Depth", "Notional"],
+                            index=["Timestamp"],
+                            columns="Percentage",
                         )
                     case "metrics":
-                        # Convert create_time to datetime
+                        # Convert CreateTime to datetime
                         df = df.with_columns(
-                            pl.col("create_time").str.strptime(
+                            pl.col("CreateTime").str.strptime(
                                 pl.Datetime, format="%Y-%m-%d %H:%M:%S"
                             )
                         )
                     case "indexPriceKlines":
                         df = df.with_columns(
-                            pl.col("open_time").cast(pl.Datetime("ms")),
-                            pl.col("close_time").cast(pl.Datetime("ms")),
+                            pl.col("OpenTime").cast(pl.Datetime("ms")),
+                            pl.col("CloseTime").cast(pl.Datetime("ms")),
                         )
                     case _:
                         pass
@@ -245,5 +247,41 @@ def convert(
                 # raise typer.Exit(code=1)
 
 
-if __name__ == "__main__":
-    app()
+def migrate():
+    """
+    Migrate all existing parquet files in DEST directory to convert column names from snake_case to PascalCase.
+    """
+    parquet_files = list(DATA_DIR.glob("**/*.parquet"))
+    
+    if not parquet_files:
+        logger.info("No parquet files found to migrate.")
+        return
+    
+    logger.info(f"Found {len(parquet_files)} parquet files to migrate.")
+    
+    for parquet_file in tqdm(parquet_files, desc="Migrating parquet files"):
+        try:
+            # Read the existing parquet file
+            df = pl.read_parquet(parquet_file)
+            
+            # Check if any columns need to be converted (contains underscores)
+            needs_conversion = any('_' in col for col in df.columns)
+            
+            if needs_conversion:
+                # Convert column names from snake_case to PascalCase
+                column_mapping = {col: snake_to_pascal(col) for col in df.columns}
+                df = df.rename(column_mapping)
+                
+                # Write back to the same file
+                df.write_parquet(parquet_file)
+                logger.info(f"Migrated: {parquet_file.name}")
+            else:
+                logger.debug(f"Skipped (already PascalCase): {parquet_file.name}")
+                
+        except Exception as e:
+            logger.error(f"Failed to migrate {parquet_file}: {e}")
+    
+    logger.info("Migration completed!")
+
+
+

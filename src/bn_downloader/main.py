@@ -142,11 +142,13 @@ def process_task(args):
 def download(
     start_date: str = typer.Option(
         ...,
+        "--start-date",
         "-s",
         help="Start date in YYYYMMDD format",
     ),
     end_date: str = typer.Option(
         None,
+        "--end-date",
         "-e",
         help="End date in YYYYMMDD format (defaults to start_date)",
     ),
@@ -194,7 +196,3 @@ def download(
             # Pass pbar to each task
             tasks_with_pbar = [task + (pbar,) for task in tasks]
             executor.map(process_task, tasks_with_pbar)
-
-
-if __name__ == "__main__":
-    app()

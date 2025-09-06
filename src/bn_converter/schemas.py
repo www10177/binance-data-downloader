@@ -2,49 +2,49 @@ import polars as pl
 
 # Schema for klines
 KLINES_SCHEMA = {
-    "open_time": pl.Int64,
-    "open": pl.Utf8,
-    "high": pl.Utf8,
-    "low": pl.Utf8,
-    "close": pl.Utf8,
-    "volume": pl.Utf8,
-    "close_time": pl.Int64,
-    "quote_volume": pl.Utf8,
-    "count": pl.UInt64,
-    "taker_buy_volume": pl.Utf8,
-    "taker_buy_quote_volume": pl.Utf8,
-    "ignore": pl.UInt8,
+    "OpenTime": pl.Int64,
+    "Open": pl.Utf8,
+    "High": pl.Utf8,
+    "Low": pl.Utf8,
+    "Close": pl.Utf8,
+    "Volume": pl.Utf8,
+    "CloseTime": pl.Int64,
+    "QuoteVolume": pl.Utf8,
+    "Count": pl.UInt64,
+    "TakerBuyVolume": pl.Utf8,
+    "TakerBuyQuoteVolume": pl.Utf8,
+    "Ignore": pl.UInt8,
 }
 
 # Schema for aggTrades
 AGGTRADES_SCHEMA = {
-    "agg_trade_id": pl.UInt64,
-    "price": pl.Utf8,
-    "quantity": pl.Utf8,
-    "first_trade_id": pl.UInt64,
-    "last_trade_id": pl.UInt64,
-    "transact_time": pl.UInt64,
-    "is_buyer_maker": pl.Boolean,
+    "AggTradeId": pl.UInt64,
+    "Price": pl.Utf8,
+    "Quantity": pl.Utf8,
+    "FirstTradeId": pl.UInt64,
+    "LastTradeId": pl.UInt64,
+    "TransactTime": pl.UInt64,
+    "IsBuyerMaker": pl.Boolean,
 }
 
 # Schema for bookDepth
 BOOKDEPTH_SCHEMA = {
-    "timestamp": pl.String,
-    "percentage": pl.Int8,
-    "depth": pl.Utf8,
-    "notional": pl.Utf8,
+    "Timestamp": pl.String,
+    "Percentage": pl.Int8,
+    "Depth": pl.Utf8,
+    "Notional": pl.Utf8,
 }
 
 # Schema for metrics
 METRICS_SCHEMA = {
-    "create_time": pl.String,
-    "symbol": pl.String,
-    "sum_open_interest": pl.Utf8,
-    "sum_open_interest_value": pl.Utf8,
-    "count_toptrader_long_short_ratio": pl.Utf8,
-    "sum_toptrader_long_short_ratio": pl.Utf8,
-    "count_long_short_ratio": pl.Utf8,
-    "sum_taker_long_short_vol_ratio": pl.Utf8,
+    "CreateTime": pl.String,
+    "Symbol": pl.String,
+    "SumOpenInterest": pl.Utf8,
+    "SumOpenInterestValue": pl.Utf8,
+    "CountToptraderLongShortRatio": pl.Utf8,
+    "SumToptraderLongShortRatio": pl.Utf8,
+    "CountLongShortRatio": pl.Utf8,
+    "SumTakerLongShortVolRatio": pl.Utf8,
 }
 
 SCHEMA = {

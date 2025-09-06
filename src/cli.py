@@ -1,6 +1,7 @@
 import typer
+from typing import Optional
 
-from bn_converter.conv import convert
+from bn_converter.conv import convert, migrate
 from bn_downloader.main import download
 
 app = typer.Typer()
@@ -11,7 +12,7 @@ def cli_download(
     start_date: str = typer.Option(
         ..., "--start-date", "-s", help="Start date in YYYYMMDD format"
     ),
-    end_date: str = typer.Option(
+    end_date: Optional[str] = typer.Option(
         None,
         "--end-date",
         "-e",
@@ -29,13 +30,13 @@ def cli_convert(
     start_date: str = typer.Option(
         ..., "--start-date", "-s", help="Start date (YYYYMMDD)."
     ),
-    end_date: str = typer.Option(None, "--end-date", "-e", help="End date (YYYYMMDD)."),
-    symbol: str = typer.Option(
+    end_date: Optional[str] = typer.Option(None, "--end-date", "-e", help="End date (YYYYMMDD)."),
+    symbol: Optional[str] = typer.Option(
         None,
         "--symbol",
         help="Trading symbol (e.g., BTCUSDT). If omitted, convert all symbols.",
     ),
-    data_type: str = typer.Option(
+    data_type: Optional[str] = typer.Option(
         None,
         "--type",
         help="Data type (e.g., trades, aggTrades, klines, etc.). If omitted, convert all types.",
@@ -45,6 +46,12 @@ def cli_convert(
     ),
 ):
     convert(start_date, end_date, symbol, data_type, rm)
+
+
+@app.command("migrate")
+def cli_migrate():
+    """Migrate all existing parquet files to PascalCase column names."""
+    migrate()
 
 
 if __name__ == "__main__":
