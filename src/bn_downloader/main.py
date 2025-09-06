@@ -11,6 +11,8 @@ import typer
 from loguru import logger
 from tqdm import tqdm
 
+from .source import Binance
+
 app = typer.Typer()
 um_app = typer.Typer()
 app.add_typer(um_app, name="UM")
@@ -98,7 +100,7 @@ def verify_and_unzip(
 
 
 def process_task(args):
-    current_date, symbol, data_type, dest, config, pbar = args
+    current_date, symbol, data_type, dest, config, source, pbar = args
     try:
         date_str_url = current_date.strftime("%Y-%m-%d")
         year, month, day = (
@@ -108,13 +110,14 @@ def process_task(args):
         )
 
         interval = config["interval"]
+        base_url_prefix = source.get_base_url()
 
         if data_type in ["premiumIndexKlines", "indexPriceKlines", "klines"]:
-            base_url = f"https://data.binance.vision/data/futures/um/daily/{data_type}/{symbol}/{interval}/"
+            base_url = f"{base_url_prefix}/{data_type}/{symbol}/{interval}/"
             file_name_zip = f"{symbol}-{interval}-{date_str_url}.zip"
             has_inverval = True
         else:
-            base_url = f"https://data.binance.vision/data/futures/um/daily/{data_type}/{symbol}/"
+            base_url = f"{base_url_prefix}{data_type}/{symbol}/"
             file_name_zip = f"{symbol}-{data_type}-{date_str_url}.zip"
             has_inverval = False
 
@@ -123,7 +126,7 @@ def process_task(args):
         url_zip = f"{base_url}{file_name_zip}"
         url_checksum = f"{base_url}{file_name_checksum}"
 
-        dest_dir = pathlib.Path(dest) / year / month / day / data_type
+        dest_dir = pathlib.Path(dest) / source.value / year / month / day / data_type
         dest_dir.mkdir(parents=True, exist_ok=True)
 
         dest_path_zip = dest_dir / f"{symbol}.zip"
@@ -158,6 +161,12 @@ def download(
         "-w",
         help="Number of worker threads to use.",
     ),
+    source: Binance = typer.Option(
+        Binance.UM,
+        "-s",
+        "--source",
+        help="data source ",
+    ),
 ):
     """
     Downloads book depth data for a given symbol and date range.
@@ -189,7 +198,7 @@ def download(
         current_date = end - timedelta(days=i)
         for symbol in symbols:
             for data_type in data_types:
-                tasks.append((current_date, symbol, data_type, DEST, config))
+                tasks.append((current_date, symbol, data_type, DEST, config, source))
 
     with tqdm(total=len(tasks), desc="Downloading data") as pbar:
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:

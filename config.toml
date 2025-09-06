@@ -1,7 +1,6 @@
 DEST = "./data"
 symbols = ["BTCUSDT", "ETHUSDT","SUIUSDT","SOLUSDT"]
 
-
 # UM only
 # allowed: bookDepth, bookTicker, trades, metrics, premiumIndexKlines, indexPriceKlines, klines, aggTrades,
 data_types = ["bookDepth","trades",'metrics','premiumIndexKlines','indexPriceKlines', 'klines', "aggTrades"]
