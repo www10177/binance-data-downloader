@@ -56,7 +56,7 @@ logger.info(f"Using data directory: {DATA_DIR}")
 def find_all_symbols_and_types(start_date, end_date):
     """Find all (symbol, data_type) pairs in the data directory for the date range."""
     found = set()
-    for d in DATA_DIR.glob("*/*/*/*/*/*.csv"):
+    for d in DATA_DIR.glob("**/*.csv"):
         try:
             parts = d.parts
             yyyy = int(parts[-5])
@@ -75,7 +75,7 @@ def find_all_symbols_and_types(start_date, end_date):
 def find_csv_files(symbol, data_type, start_date, end_date):
     """Finds CSV files for the symbol and data_type between start_date and end_date in DATA_DIR."""
     files = []
-    pattern = "*/*/*/*/"
+    pattern = "**/"
     if data_type:
         pattern += data_type + "/"
     else:
@@ -89,9 +89,9 @@ def find_csv_files(symbol, data_type, start_date, end_date):
     for d in DATA_DIR.glob(pattern):
         try:
             parts = d.parts
-            yyyy = int(parts[-4])
-            mm = int(parts[-3])
-            dd = int(parts[-2])
+            yyyy = int(parts[-5])
+            mm = int(parts[-4])
+            dd = int(parts[-3])
             file_date = date(yyyy, mm, dd)
             if start_date <= file_date <= end_date:
                 files.append((file_date, d))
@@ -137,7 +137,7 @@ def convert(
         csv_files = find_csv_files(sym, dtype, start_dt, end_dt)
         if not csv_files:
             logger.warning(
-                f"No CSV files found for {sym} {dtype} between {start_date} and {end_date} in {DATA_DIR}"
+                f"No CSV files found for {sym} {dtype} between {start_dt} and {end_dt} in {DATA_DIR}"
             )
             continue
         logger.info(
@@ -207,7 +207,7 @@ def convert(
                         # Convert Timestamp to datetime
                         df = df.with_columns(
                             pl.col("Timestamp").str.strptime(
-                                pl.Datetime, format="%Y-%m-%d %H:%M:%S"
+                                pl.Datetime, format="%Y-%m-%d %H:%M:%S%.f"
                             )
                         )
                         df = df.pivot(
@@ -219,7 +219,7 @@ def convert(
                         # Convert CreateTime to datetime
                         df = df.with_columns(
                             pl.col("CreateTime").str.strptime(
-                                pl.Datetime, format="%Y-%m-%d %H:%M:%S"
+                                pl.Datetime, format="%Y-%m-%d %H:%M:%S%.f"
                             )
                         )
                     case "indexPriceKlines":
@@ -276,6 +276,7 @@ def migrate():
 
             rename = dict(Quantity="Qty", TransactTime="TxnTime")
             needs_rename = any(original in df.columns for original in rename.keys())
+
             if needs_rename:
                 df = df.rename(rename)
                 logger.info(f"Renamed columns in: {parquet_file.name}")

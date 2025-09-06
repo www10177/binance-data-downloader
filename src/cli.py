@@ -51,6 +51,7 @@ def cli_convert(
         False, "--rm", help="Remove CSV files after successful conversion."
     ),
 ):
+    print(start_date, end_date, symbol, data_type, rm)
     convert(start_date, end_date, symbol, data_type, rm)
 
 
