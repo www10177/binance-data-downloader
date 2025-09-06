@@ -101,6 +101,7 @@ def verify_and_unzip(
 
 def process_task(args):
     current_date, symbol, data_type, dest, config, source, pbar = args
+    pbar.update(1)
     try:
         date_str_url = current_date.strftime("%Y-%m-%d")
         year, month, day = (
@@ -135,10 +136,10 @@ def process_task(args):
         download_file(url_zip, dest_path_zip)
         download_file(url_checksum, dest_path_checksum)
         verify_and_unzip(dest_path_zip, dest_path_checksum, has_inverval)
+        return True
     except Exception:
         logger.error(f"Failed to download data for {symbol} on {date_str_url}")
-    finally:
-        pbar.update(1)
+        return False
 
 
 @um_app.command()
@@ -179,4 +180,12 @@ def download(start_date: str, end_date: str | None, max_workers: int, source: Bi
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Pass pbar to each task
             tasks_with_pbar = [task + (pbar,) for task in tasks]
-            executor.map(process_task, tasks_with_pbar)
+            results = list(executor.map(process_task, tasks_with_pbar))
+
+    # Check if any tasks failed
+    failed_count = results.count(False)
+    if failed_count > 0:
+        logger.error(f"{failed_count} out of {len(tasks)} tasks failed.")
+        raise typer.Exit(code=1)
+    else:
+        logger.info(f"All {len(tasks)} tasks completed successfully.")
