@@ -133,6 +133,9 @@ def convert(
         logger.error("No matching symbol/data_type pairs found for the given range.")
         raise typer.Exit(code=1)
 
+    failed_files = []
+    total_files = 0
+
     for sym, dtype in jobs:
         csv_files = find_csv_files(sym, dtype, start_dt, end_dt)
         if not csv_files:
@@ -143,6 +146,7 @@ def convert(
         logger.info(
             f"Found {len(csv_files)} CSV files for {sym} {dtype} from {start_date} to {end_date}."
         )
+        total_files += len(csv_files)
         for csv_file in csv_files:
             try:
                 # Read CSV without schema first to get original column names
@@ -240,7 +244,14 @@ def convert(
                         logger.warning(f"Failed to remove {csv_file}: {e}")
             except Exception as e:
                 logger.exception(f"An error occurred during conversion: {e}")
-                # raise typer.Exit(code=1)
+                failed_files.append(str(csv_file))
+
+    # Check if any conversions failed
+    if failed_files:
+        logger.error(f"{len(failed_files)} out of {total_files} file conversions failed.")
+        raise typer.Exit(code=1)
+    else:
+        logger.info(f"All {total_files} files converted successfully.")
 
 
 def migrate():
