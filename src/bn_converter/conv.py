@@ -18,8 +18,11 @@ from .schemas import SCHEMA
 
 def snake_to_pascal(snake_str: str) -> str:
     """Convert snake_case string to PascalCase."""
-    components = snake_str.split("_")
-    return "".join(word.capitalize() for word in components)
+    if snake_str[0].islower():
+        components = snake_str.split("_")
+        return "".join(word.capitalize() for word in components)
+    else:
+        return snake_str
 
 
 def load_config():
@@ -282,13 +285,13 @@ def migrate():
             )
 
             if needs_conversion:
-                df = df.rename(column_mapping)
+                df = df.rename(column_mapping, strict=False)
 
             rename = dict(Quantity="Qty", TransactTime="TxnTime")
             needs_rename = any(original in df.columns for original in rename.keys())
 
             if needs_rename:
-                df = df.rename(rename)
+                df = df.rename(rename, strict=False)
 
             if needs_conversion or needs_rename:
                 # Write back to the same file
