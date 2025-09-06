@@ -248,7 +248,9 @@ def convert(
 
     # Check if any conversions failed
     if failed_files:
-        logger.error(f"{len(failed_files)} out of {total_files} file conversions failed.")
+        logger.error(
+            f"{len(failed_files)} out of {total_files} file conversions failed."
+        )
         raise typer.Exit(code=1)
     else:
         logger.info(f"All {total_files} files converted successfully.")
@@ -281,16 +283,12 @@ def migrate():
 
             if needs_conversion:
                 df = df.rename(column_mapping)
-                logger.info(f"Migrated: {parquet_file.name}")
-            else:
-                logger.debug(f"Skipped (already PascalCase): {parquet_file.name}")
 
             rename = dict(Quantity="Qty", TransactTime="TxnTime")
             needs_rename = any(original in df.columns for original in rename.keys())
 
             if needs_rename:
                 df = df.rename(rename)
-                logger.info(f"Renamed columns in: {parquet_file.name}")
 
             if needs_conversion or needs_rename:
                 # Write back to the same file
