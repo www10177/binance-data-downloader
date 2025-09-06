@@ -271,8 +271,8 @@ def migrate():
 
     logger.info(f"Found {len(parquet_files)} parquet files to migrate.")
 
-    for parquet_file in tqdm(parquet_files, desc="Migrating parquet files"):
-        tqdm.set_description(f"Processing: {os.path.basename(parquet_file)}")
+    for parquet_file in (pbar:=tqdm(parquet_files)):
+        pbar.set_description(f"Processing: {parquet_file}")
         try:
             # Read the existing parquet file
             df = pl.read_parquet(parquet_file)
