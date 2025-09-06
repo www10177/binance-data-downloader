@@ -16,12 +16,10 @@ from tqdm import tqdm
 from .schemas import SCHEMA
 
 
-
-
 def snake_to_pascal(snake_str: str) -> str:
     """Convert snake_case string to PascalCase."""
-    components = snake_str.split('_')
-    return ''.join(word.capitalize() for word in components)
+    components = snake_str.split("_")
+    return "".join(word.capitalize() for word in components)
 
 
 def load_config():
@@ -149,11 +147,11 @@ def convert(
             try:
                 # Read CSV without schema first to get original column names
                 df = pl.read_csv(csv_file, try_parse_dates=True)
-                
+
                 # Convert column names from snake_case to PascalCase
                 column_mapping = {col: snake_to_pascal(col) for col in df.columns}
                 df = df.rename(column_mapping)
-                
+
                 # Apply schema if available (now with PascalCase column names)
                 schema = SCHEMA.get(dtype, None)
                 if schema:
@@ -163,9 +161,7 @@ def convert(
                             if col_name in df.columns:
                                 df = df.with_columns(pl.col(col_name).cast(col_type))
                     except Exception as e:
-                        logger.warning(
-                            f"Could not apply schema types for {dtype}: {e}"
-                        )
+                        logger.warning(f"Could not apply schema types for {dtype}: {e}")
                 # Guess decimal scale for Utf8 columns
                 for col_name in df.columns:
                     if df[col_name].dtype == pl.Utf8:
@@ -252,36 +248,36 @@ def migrate():
     Migrate all existing parquet files in DEST directory to convert column names from snake_case to PascalCase.
     """
     parquet_files = list(DATA_DIR.glob("**/*.parquet"))
-    
+
     if not parquet_files:
         logger.info("No parquet files found to migrate.")
         return
-    
+
     logger.info(f"Found {len(parquet_files)} parquet files to migrate.")
-    
+
     for parquet_file in tqdm(parquet_files, desc="Migrating parquet files"):
         try:
             # Read the existing parquet file
             df = pl.read_parquet(parquet_file)
-            
-            # Check if any columns need to be converted (contains underscores)
-            needs_conversion = any('_' in col for col in df.columns)
-            
+
+            # Convert column names from snake_case to PascalCase
+            column_mapping = {col: snake_to_pascal(col) for col in df.columns}
+
+            # Check if any columns actually changed
+            needs_conversion = any(
+                original != converted for original, converted in column_mapping.items()
+            )
+
             if needs_conversion:
-                # Convert column names from snake_case to PascalCase
-                column_mapping = {col: snake_to_pascal(col) for col in df.columns}
                 df = df.rename(column_mapping)
-                
+
                 # Write back to the same file
                 df.write_parquet(parquet_file)
                 logger.info(f"Migrated: {parquet_file.name}")
             else:
                 logger.debug(f"Skipped (already PascalCase): {parquet_file.name}")
-                
+
         except Exception as e:
             logger.error(f"Failed to migrate {parquet_file}: {e}")
-    
+
     logger.info("Migration completed!")
-
-
-
