@@ -1,8 +1,11 @@
-DEST = "./data"
+DEST = "/mnt/WD16T/crypto-data"
+# DEST = "./crypto-data"
 symbols = ["BTCUSDT", "ETHUSDT","SUIUSDT","SOLUSDT"]
+
 
 # UM only
 # allowed: bookDepth, bookTicker, trades, metrics, premiumIndexKlines, indexPriceKlines, klines, aggTrades,
 data_types = ["bookDepth","trades",'metrics','premiumIndexKlines','indexPriceKlines', 'klines', "aggTrades"]
+# data_types = ['premiumIndexKlines','indexPriceKlines', 'klines']
 # interval for kline related 
 interval= "1m"
