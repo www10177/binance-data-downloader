@@ -170,6 +170,7 @@ def convert(
                 has_headers = has_header(csv_file)
                 schema = SCHEMA.get(dtype, {})
                 if not has_headers:
+                    logger.info(f"No headers found in {csv_file}.")
                     if len(schema) > 0:
                         logger.info(
                             f"Using predefined schema for {dtype} without headers. ({csv_file})"
@@ -238,9 +239,7 @@ def convert(
                         # Convert TransactTime to datetime
                         df = df.with_columns(
                             pl.col("TransactTime").cast(pl.Datetime("ms"))
-                        ).rename(
-                            {"Quantity": "Qty", "TransactTime": "TxnTime"}, strict=False
-                        )
+                        ).rename({"Quantity": "Qty", "TransactTime": "TxnTime"})
                     case "bookDepth":
                         # Convert Timestamp to datetime
                         df = df.with_columns(
