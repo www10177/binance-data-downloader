@@ -57,11 +57,29 @@ METRICS_SCHEMA = OrderedDict(
     }
 )
 
+INDEX_PRICE_KLINES_SCHEMA = OrderedDict(
+    {
+        "OpenTime": pl.Int64,
+        "Open": pl.Utf8,
+        "High": pl.Utf8,
+        "Low": pl.Utf8,
+        "Close": pl.Utf8,
+        "Volume": pl.Utf8,
+        "CloseTime": pl.Int64,
+        "QuoteVolume": pl.Utf8,
+        "Count": pl.UInt64,
+        "TakerBuyVolume": pl.Utf8,
+        "TakerBuyQuoteVolume": pl.Utf8,
+        "Ignore": pl.UInt8,
+    }
+)
+
 SCHEMA = OrderedDict(
     {
         "klines": KLINES_SCHEMA,
         "aggTrades": AGGTRADES_SCHEMA,
         "bookDepth": BOOKDEPTH_SCHEMA,
         "metrics": METRICS_SCHEMA,
+        "indexPriceKlines": INDEX_PRICE_KLINES_SCHEMA,
     }
 )
