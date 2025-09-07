@@ -34,7 +34,7 @@ def has_header(csv_file: Path) -> bool:
                 return False
 
             # Check if first line contains any letters (indicating header)
-            return any(char.isalpha() for char in first_line)
+            return first_line[0].isalpha()
     except Exception:
         return False
 
