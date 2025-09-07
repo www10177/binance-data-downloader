@@ -238,6 +238,8 @@ def convert(
                         # Convert TransactTime to datetime
                         df = df.with_columns(
                             pl.col("TransactTime").cast(pl.Datetime("ms"))
+                        ).rename(
+                            {"Quantity": "Qty", "TransactTime": "TxnTime"}, strict=False
                         )
                     case "bookDepth":
                         # Convert Timestamp to datetime
@@ -275,7 +277,7 @@ def convert(
                     except Exception as e:
                         logger.warning(f"Failed to remove {csv_file}: {e}")
             except Exception as e:
-                logger.exception(f"An error occurred during conversion: {e}")
+                logger.exception(f"An error occurred during conversion {csv_file}: {e}")
                 failed_files.append(str(csv_file))
 
     # Check if any conversions failed
