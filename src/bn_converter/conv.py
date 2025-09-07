@@ -25,6 +25,20 @@ def snake_to_pascal(snake_str: str) -> str:
         return snake_str
 
 
+def has_header(csv_file: Path) -> bool:
+    """Check if CSV file has a header row by examining first line."""
+    try:
+        with open(csv_file, "r") as f:
+            first_line = f.readline().strip()
+            if not first_line:
+                return False
+
+            # Check if first line contains any letters (indicating header)
+            return any(char.isalpha() for char in first_line)
+    except Exception:
+        return False
+
+
 def load_config():
     """Loads the config.toml file."""
     try:
@@ -152,16 +166,31 @@ def convert(
         total_files += len(csv_files)
         for csv_file in csv_files:
             try:
-                # Read CSV without schema first to get original column names
-                df = pl.read_csv(csv_file, try_parse_dates=True)
-
-                # Convert column names from snake_case to PascalCase
+                # Check if CSV has headers
+                has_headers = has_header(csv_file)
+                schema = SCHEMA.get(dtype, {})
+                if not has_headers:
+                    if len(schema) > 0:
+                        logger.info(
+                            f"Using predefined schema for {dtype} without headers. ({csv_file})"
+                        )
+                    else:
+                        logger.warning(
+                            f"No schema available for {dtype} and CSV has no headers. Skipping {csv_file}."
+                        )
+                        failed_files.append(str(csv_file))
+                        continue
+                df = pl.read_csv(
+                    csv_file,
+                    has_header=has_headers,
+                    try_parse_dates=True,
+                    new_columns=None if has_headers else list(schema.keys()),
+                )
                 column_mapping = {col: snake_to_pascal(col) for col in df.columns}
                 df = df.rename(column_mapping)
 
                 # Apply schema if available (now with PascalCase column names)
-                schema = SCHEMA.get(dtype, None)
-                if schema:
+                if len(schema) > 0:
                     try:
                         # Cast columns to match schema types
                         for col_name, col_type in schema.items():
@@ -271,7 +300,7 @@ def migrate():
 
     logger.info(f"Found {len(parquet_files)} parquet files to migrate.")
 
-    for parquet_file in (pbar:=tqdm(parquet_files)):
+    for parquet_file in (pbar := tqdm(parquet_files)):
         pbar.set_description(f"Processing: {parquet_file}")
         try:
             # Read the existing parquet file
