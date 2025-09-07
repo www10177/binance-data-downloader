@@ -22,11 +22,14 @@ def cli_download(
     max_workers: int = typer.Option(
         4, "--max-workers", "-w", help="Number of worker threads to use."
     ),
+    skip_existed: bool = typer.Option(
+        False, "--skip-existed", help="Skip download if file already exists in any format (.zip, .csv, .parquet)."
+    ),
     source: Binance = typer.Argument(
         help="data source ",
     ),
 ):
-    download(start_date, end_date, max_workers, source)
+    download(start_date, end_date, max_workers, skip_existed, source)
 
 
 @app.command("convert")

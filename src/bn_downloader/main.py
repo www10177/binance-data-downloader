@@ -44,6 +44,24 @@ def setup_logging():
 setup_logging()
 
 
+def file_exists_in_any_format(dest_dir: pathlib.Path, symbol: str, has_interval: bool) -> bool:
+    """Check if file exists in any format (.zip, .csv, .parquet)"""
+    # Check for different file formats that might exist
+    formats_to_check = [".zip", ".csv", ".parquet"]
+    
+    for ext in formats_to_check:
+        if has_interval:
+            # For interval-based files, check with glob pattern
+            if list(dest_dir.glob(f"{symbol}-*{ext}")):
+                return True
+        
+        file_path = dest_dir / f"{symbol}{ext}"
+        if file_path.exists():
+            return True
+    
+    return False
+
+
 def download_file(url: str, dest_path: pathlib.Path):
     """Downloads a file from a URL to a destination path."""
     try:
@@ -100,7 +118,7 @@ def verify_and_unzip(
 
 
 def process_task(args):
-    current_date, symbol, data_type, dest, config, source, pbar = args
+    current_date, symbol, data_type, dest, config, source, skip_existed, pbar = args
     pbar.update(1)
     try:
         date_str_url = current_date.strftime("%Y-%m-%d")
@@ -122,13 +140,18 @@ def process_task(args):
             file_name_zip = f"{symbol}-{data_type}-{date_str_url}.zip"
             has_inverval = False
 
+        dest_dir = pathlib.Path(dest) / source.value / year / month / day / data_type
+        dest_dir.mkdir(parents=True, exist_ok=True)
+
+        # Check if file exists in any format before downloading
+        if skip_existed and file_exists_in_any_format(dest_dir, symbol, has_inverval):
+            logger.info(f"Skipping {symbol} on {date_str_url} - file already exists")
+            return True
+
         file_name_checksum = f"{file_name_zip}.CHECKSUM"
 
         url_zip = f"{base_url}{file_name_zip}"
         url_checksum = f"{base_url}{file_name_checksum}"
-
-        dest_dir = pathlib.Path(dest) / source.value / year / month / day / data_type
-        dest_dir.mkdir(parents=True, exist_ok=True)
 
         dest_path_zip = dest_dir / f"{symbol}.zip"
         dest_path_checksum = dest_dir / f"{symbol}.zip.CHECKSUM"
@@ -143,7 +166,7 @@ def process_task(args):
 
 
 @um_app.command()
-def download(start_date: str, end_date: str | None, max_workers: int, source: Binance):
+def download(start_date: str, end_date: str | None, max_workers: int, skip_existed: bool, source: Binance):
     """
     Downloads book depth data for a given symbol and date range.
     """
@@ -174,7 +197,7 @@ def download(start_date: str, end_date: str | None, max_workers: int, source: Bi
         current_date = end - timedelta(days=i)
         for symbol in symbols:
             for data_type in data_types:
-                tasks.append((current_date, symbol, data_type, DEST, config, source))
+                tasks.append((current_date, symbol, data_type, DEST, config, source, skip_existed))
 
     with tqdm(total=len(tasks), desc="Downloading data") as pbar:
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
