@@ -3,7 +3,7 @@ DEST = "/mnt/WD16T/crypto-data"
 symbols = ["BTCUSDT", "ETHUSDT","SUIUSDT","SOLUSDT", "BNBUSDT","XRPUSDT","DOGEUSDT","BCHUSDT","1000BONKUSDT","WLFIUSDT","WIFUSDT","1000PEPEUSDT","AVAXUSDT", "WIFUSDC","SUIUSDC","BTCUSDC","USDCUSDT","ETHUSDC"]
 
 # Spot symbols (remove futures-specific symbols like 1000BONKUSDT, WLFIUSDT, etc.)
-spot_symbols = ["BTCUSDT", "ETHUSDT", "SUIUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT", "BCHUSDT", "AVAXUSDT"]
+spot_symbols = ["BTCUSDT", "ETHUSDT","SUIUSDT","SOLUSDT", "BNBUSDT","XRPUSDT","DOGEUSDT","BCHUSDT","BONKUSDT","WLFIUSDT","WIFUSDT","PEPEUSDT","AVAXUSDT", "WIFUSDC","SUIUSDC","BTCUSDC","USDCUSDT","ETHUSDC"]
 
 # UM only
 # allowed: bookDepth, bookTicker, trades, metrics, premiumIndexKlines, indexPriceKlines, klines, aggTrades,
