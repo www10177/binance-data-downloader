@@ -14,8 +14,6 @@ from tqdm import tqdm
 from .source import Binance
 
 app = typer.Typer()
-um_app = typer.Typer()
-app.add_typer(um_app, name="UM")
 
 
 def load_config():
@@ -165,19 +163,22 @@ def process_task(args):
         return False
 
 
-@um_app.command()
 def download(start_date: str, end_date: str | None, max_workers: int, skip_existed: bool, source: Binance):
     """
-    Downloads book depth data for a given symbol and date range.
+    Downloads data for a given symbol and date range.
     """
     if end_date is None:
         end_date = start_date
 
     config = load_config()
     DEST = config.get("DEST")
-    symbols = config.get("symbols", [])
-
-    data_types = config.get("data_types", [])
+    
+    if source == Binance.UM:
+        symbols = config.get("symbols", [])
+        data_types = config.get("data_types", [])
+    else:  # Binance.SPOT
+        symbols = config.get("spot_symbols", config.get("symbols", []))
+        data_types = config.get("spot_data_types", ["trades", "klines", "aggTrades"])
 
     if not DEST or not symbols or not data_types:
         logger.error("DEST, symbols, or data_types not set in config.toml.")
@@ -199,7 +200,8 @@ def download(start_date: str, end_date: str | None, max_workers: int, skip_exist
             for data_type in data_types:
                 tasks.append((current_date, symbol, data_type, DEST, config, source, skip_existed))
 
-    with tqdm(total=len(tasks), desc="Downloading data") as pbar:
+    desc = f"Downloading {source.value.lower()} data"
+    with tqdm(total=len(tasks), desc=desc) as pbar:
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Pass pbar to each task
             tasks_with_pbar = [task + (pbar,) for task in tasks]

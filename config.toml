@@ -1,11 +1,18 @@
 DEST = "/mnt/WD16T/crypto-data"
 # DEST = "./crypto-data"
-symbols = ["BTCUSDT", "ETHUSDT","SUIUSDT","SOLUSDT"]
+symbols = ["BTCUSDT", "ETHUSDT","SUIUSDT","SOLUSDT", "BNBUSDT","XRPUSDT","DOGEUSDT","BCHUSDT","1000BONKUSDT","WLFIUSDT","WIFUSDT","1000PEPEUSDT","AVAXUSDT", "WIFUSDC","SUIUSDC","BTCUSDC","USDCUSDT","ETHUSDC"]
 
+# Spot symbols (remove futures-specific symbols like 1000BONKUSDT, WLFIUSDT, etc.)
+spot_symbols = ["BTCUSDT", "ETHUSDT", "SUIUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT", "BCHUSDT", "AVAXUSDT"]
 
 # UM only
 # allowed: bookDepth, bookTicker, trades, metrics, premiumIndexKlines, indexPriceKlines, klines, aggTrades,
 data_types = ["bookDepth","trades",'metrics','premiumIndexKlines','indexPriceKlines', 'klines', "aggTrades"]
 # data_types = ['premiumIndexKlines','indexPriceKlines', 'klines']
+
+# Spot data types
+# allowed: trades, aggTrades, klines, bookDepth, bookTicker
+spot_data_types = ["trades", "aggTrades", "klines"]
+
 # interval for kline related 
 interval= "1m"
