@@ -74,6 +74,19 @@ INDEX_PRICE_KLINES_SCHEMA = OrderedDict(
     }
 )
 
+# Schema for trades
+TRADES_SCHEMA = OrderedDict(
+    {
+        "TradeId": pl.UInt64,
+        "Price": pl.Utf8,
+        "Qty": pl.Utf8,
+        "QuoteQty": pl.Utf8,
+        "Time": pl.UInt64,
+        "IsBuyerMaker": pl.Boolean,
+        "IsBestMatch": pl.Boolean,
+    }
+)
+
 SCHEMA = OrderedDict(
     {
         "klines": KLINES_SCHEMA,
@@ -81,5 +94,6 @@ SCHEMA = OrderedDict(
         "bookDepth": BOOKDEPTH_SCHEMA,
         "metrics": METRICS_SCHEMA,
         "indexPriceKlines": INDEX_PRICE_KLINES_SCHEMA,
+        "trades": TRADES_SCHEMA,
     }
 )
