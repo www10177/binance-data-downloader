@@ -18,8 +18,14 @@ uv sync
 
 ### Main Commands
 ```bash
-# Download data for specific date range
-bn download --start-date YYYYMMDD --end-date YYYYMMDD --max-workers 4
+# Download futures data (UM - USD-M futures)
+bn download --start-date YYYYMMDD --end-date YYYYMMDD --max-workers 4 um
+
+# Download spot data
+bn download --start-date YYYYMMDD --end-date YYYYMMDD --max-workers 4 spot
+
+# Skip download if file already exists in any format (.zip, .csv, .parquet)
+bn download --start-date YYYYMMDD --end-date YYYYMMDD --skip-existed um
 
 # Convert CSV files to Parquet format
 bn convert --start-date YYYYMMDD --end-date YYYYMMDD --symbol BTCUSDT --type trades --rm
@@ -39,16 +45,20 @@ The main CLI entry point is defined in `pyproject.toml` as `bn = "cli:app"`, whi
 - Uses Typer for command-line interface
 - Delegates to main modules: `bn_downloader.main.download`, `bn_converter.conv.convert`, and `bn_converter.conv.migrate`
 - Three main commands: `download`, `convert`, `migrate`
+- Download command requires a source argument: `um` (futures) or `spot`
 
 **Downloader Module (`src/bn_downloader/`)**
 - `main.py`: Core downloading logic with concurrent processing
-- Downloads data from `https://data.binance.vision/data/futures/um/daily/`
+- `source.py`: Defines Binance enum with UM and SPOT sources
+- Downloads from either futures (`https://data.binance.vision/data/futures/um/daily/`) or spot (`https://data.binance.vision/data/spot/daily/`) endpoints
 - Handles file verification using SHA256 checksums
+- `skip_existed` option to skip downloads if files exist in any format
 - Organizes files by date structure: `DEST/YYYY/MM/DD/data_type/symbol.csv`
 
 **Converter Module (`src/bn_converter/`)**
 - `conv.py`: Handles CSV to Parquet conversion with schema enforcement
-- `schemas.py`: Defines Polars schemas for different data types (klines, aggTrades, bookDepth, metrics)
+- `schemas.py`: Defines Polars schemas for different data types (klines, aggTrades, bookDepth, metrics, indexPriceKlines, trades)
+- Includes `INDEX_PRICE_KLINES_SCHEMA` for index price klines data
 - Converts column names from snake_case to PascalCase
 - Applies data type casting and decimal precision inference
 
@@ -59,9 +69,11 @@ The main CLI entry point is defined in `pyproject.toml` as `bn = "cli:app"`, whi
 
 ### Configuration
 Uses `config.toml` in project root:
-- `DEST`: Destination directory for downloaded data
-- `symbols`: List of trading pairs to download (e.g., ["BTCUSDT", "ETHUSDT"])
-- `data_types`: Available types include bookDepth, bookTicker, trades, metrics, premiumIndexKlines, indexPriceKlines, klines, aggTrades
+- `DEST`: Destination directory for downloaded data (e.g., "/mnt/WD16T/crypto-data")
+- `symbols`: List of futures trading pairs (includes 1000BONKUSDT, WLFIUSDT style futures symbols)
+- `spot_symbols`: List of spot trading pairs (cleaned up futures-specific symbols like 1000BONKUSDT → BONKUSDT)
+- `data_types`: Futures data types include bookDepth, trades, metrics, premiumIndexKlines, indexPriceKlines, klines, aggTrades
+- `spot_data_types`: Spot data types include trades, aggTrades, klines
 - `interval`: Time interval for kline-related data types (e.g., "1m")
 
 ### Data Types Supported
@@ -73,9 +85,11 @@ Uses `config.toml` in project root:
 - **trades**, **bookTicker**, **premiumIndexKlines**: Standard data formats
 
 ### Key Features
+- **Multi-Source Support**: Supports both futures (UM) and spot data from Binance Vision
+- **Conditional Downloads**: `skip_existed` option to avoid re-downloading existing files
 - **Concurrent Downloads**: Uses ThreadPoolExecutor for parallel downloading
 - **Data Integrity**: SHA256 checksum verification for all downloaded files
-- **Schema Enforcement**: Automatic type casting using predefined schemas
+- **Schema Enforcement**: Automatic type casting using predefined schemas including INDEX_PRICE_KLINES_SCHEMA
 - **Column Standardization**: Converts snake_case to PascalCase for consistency
 - **Decimal Precision**: Automatic decimal scale inference for numeric string columns
 - **Migration Support**: Can upgrade existing parquet files to new naming conventions
@@ -87,8 +101,10 @@ Uses `config.toml` in project root:
 
 ### Dependencies
 - **uv**: Package management and virtual environment
-- **polars**: High-performance DataFrame library for data processing
+- **polars-lts-cpu**: High-performance DataFrame library for data processing (LTS CPU version)
+- **pyarrow**: Arrow-based columnar in-memory analytics for Parquet file support
 - **typer**: Modern CLI framework
 - **requests**: HTTP client for data downloads
 - **loguru**: Advanced logging
 - **tqdm**: Progress bars for long-running operations
+- **toml**: Configuration file parsing
