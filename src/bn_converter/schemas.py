@@ -37,7 +37,7 @@ AGGTRADES_SCHEMA = OrderedDict(
 BOOKDEPTH_SCHEMA = OrderedDict(
     {
         "Timestamp": pl.String,
-        "Percentage": pl.Int8,
+        "Percentage": pl.Decimal(precision=None, scale=8),
         "Depth": pl.Utf8,
         "Notional": pl.Utf8,
     }
